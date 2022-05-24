@@ -1,16 +1,17 @@
-
 from scipy.io import mmread
 import numpy as np
 import math
 import random
 from pyvis.network import Network
+import argparse
 
 COLORS = ["blue", "green", "red", "yellow", "orange", "purple", "pink"]
 
 def get_order(num, st):
     if st == "random":
         return random.sample([i for i in range(num)], k = num)
-
+    elif st == "DFS":
+        pass
 
 def w(part, C):
     return 1 - (len(part) / C)
@@ -65,7 +66,7 @@ def LGD(mtx, k, C, stream_type="random"):
     return partitions, lookup
 
 
-def disp(part, mtx, lookup):
+def disp(part, mtx, lookup, out):
     nt = Network()
     k = len(part)
     x = 300
@@ -93,17 +94,26 @@ def disp(part, mtx, lookup):
             else:
                 nt.add_edge(i, int(other))
 
-    nt.show('LGD.html')
+    nt.show(out + '.html')
+
+
+def find_quality(mtx, lookup, stream):
+    count = 0
+    total = 0
+    for i in range(mtx.shape[0]):
+        for other in mtx.getrow(i).indices:
+            if lookup[i] != lookup[int(other)]:
+                count += 1
+            total += 1
+    print(f"{stream}: {count / total:.2f}")
 
 
 
-
-
-def main():
+def main(inp, out, stream):
     # mtx = mmread('3elt/3elt.mtx')
     random.seed(37)
 
-    mtx = mmread('ibm32.mtx')
+    mtx = mmread(inp + '.mtx')
     num_nodes = mtx.shape[0]
     k = 5
     C = math.ceil(num_nodes / k)
@@ -111,18 +121,34 @@ def main():
     # print(k)
     # print(C)
     # print(mtx.todense())
-    part, lookup = LGD(mtx, k, C, stream_type="random")
+    part, lookup = LGD(mtx, k, C, stream_type=stream)
 
-    print("PARTITIONS:")
-    for par in part:
-        print(len(part[par]))
-        print(part[par])
-    print()
+    # print("PARTITIONS:")
+    # for par in part:
+    #     print(len(part[par]))
+    #     print(part[par])
+    # print()
 
-    disp(part, mtx, lookup)
+    find_quality(mtx, lookup, stream)
+
+    disp(part, mtx, lookup, out)
 
 
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(description='Basic graph partitioning algorithm testing')
+    parser.add_argument('-input', '-i', type= str, help = "The name of file to be input, no file extension required, expected to be a .mtx file")
+    parser.add_argument('-output', '-o', type= str, help = "The name of file to be output, no file extension required",
+                            default = "LGD.html")
+    parser.add_argument('-stream', '-s', type=str,
+                            help="How nodes are streamed in, choices, random, DFS, and BFS",
+                            choices = ["random", "DFS", "BFS", "all"], default = "all")
+    args = parser.parse_args()
+    if args.input is None or args.output is None:
+        print("incorrect arguments, please run with -h flag for help")
+    elif args.parse == "all":
+        # main(args.input, args.output, args.stream)
+        print("heh not yet")
+    else:
+        main(args.input, args.output, args.stream)
