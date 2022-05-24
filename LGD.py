@@ -3,6 +3,9 @@ from scipy.io import mmread
 import numpy as np
 import math
 import random
+from pyvis.network import Network
+
+COLORS = ["blue", "green", "red", "yellow", "orange", "purple", "pink"]
 
 def get_order(num, st):
     if st == "random":
@@ -14,15 +17,15 @@ def w(part, C):
 
 
 def LGD(mtx, k, C, stream_type="random"):
-
+    lookup = {}
     partitions = {i:[] for i in range(k)}
     order = get_order(mtx.shape[0], stream_type)
 
     count = 0
     for ent in order:
-        print("ent: ", ent)
+        # print("ent: ", ent)
         neighbors = mtx.getrow(ent).indices
-        print("neighbors: ", neighbors)
+        # print("neighbors: ", neighbors)
         cand = []
         for part in partitions:
             partition = partitions[part]
@@ -33,32 +36,65 @@ def LGD(mtx, k, C, stream_type="random"):
                     neighbors = np.delete(neighbors, i)
             cand.append(P_to_t * w(partition, C))
 
-        print("cand: ", cand)
+        # print("cand: ", cand)
         best_c = max(cand)
         choices = []
         for i in range(len(cand)):
             if cand[i] == best_c:
                 choices.append(i)
-        print("choices: ", choices)
+        # print("choices: ", choices)
         sizes = [len(partitions[part]) for part in choices]
-        print("sizes:", sizes)
+        # print("sizes:", sizes)
         small = min(sizes)
         smallest = []
         for i in range(len(sizes)):
             if sizes[i] == small:
                 smallest.append(choices[i])
-        print("smallest: ", smallest)
+        # print("smallest: ", smallest)
         choice = random.choice(smallest)
 
         partitions[choice].append(ent)
+        lookup[ent] = choice
 
-        print(partitions)
-        print()
+        # print(partitions)
+        # print()
 
         count += 1
         # if count == 8:
         #     break
-    return partitions
+    return partitions, lookup
+
+
+def disp(part, mtx, lookup):
+    nt = Network()
+    k = len(part)
+    x = 300
+    y = 0
+    theta = (2 * math.pi / k)
+    for part_id in part:
+        x, y = x * math.cos(theta) - y * math.sin(theta), y * math.cos(theta) + x * math.sin(theta)
+        for i in range(len(part[part_id])):
+            nt.add_node(n_id = part[part_id][i] ,
+                        label = str(part[part_id][i]),
+                        color = COLORS[part_id],
+                        value = 1,
+                        x = (x + random.random()* 300 - 150),
+                        y = (y + random.random() * 300 - 150),
+                        physics = False)
+
+
+
+    for i in range(mtx.shape[0]):
+        for other in mtx.getrow(i).indices:
+            if i == other:
+                continue
+            # elif lookup[i] == lookup[int(other)]:
+            #     continue
+            else:
+                nt.add_edge(i, int(other))
+
+    nt.show('LGD.html')
+
 
 
 
@@ -75,13 +111,16 @@ def main():
     # print(k)
     # print(C)
     # print(mtx.todense())
-    part = LGD(mtx, k, C, stream_type="random")
+    part, lookup = LGD(mtx, k, C, stream_type="random")
 
+    print("PARTITIONS:")
     for par in part:
         print(len(part[par]))
         print(part[par])
+    print()
 
-    
+    disp(part, mtx, lookup)
+
 
 
 
