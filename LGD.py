@@ -7,11 +7,21 @@ import argparse
 
 COLORS = ["blue", "green", "red", "yellow", "orange", "purple", "pink"]
 
-def get_order(num, st):
+def get_order(num, st, mtx):
     if st == "random":
         return random.sample([i for i in range(num)], k = num)
     elif st == "DFS":
-        pass
+        unvisited = [i for i in range(num)]
+        order = []
+        stack = [] #INDICES
+        while len(unvisited) != 0:
+            if len(stack) == 0:
+                stack.append(random.choice(unvisited))
+                unvisited.pop(stack[0])
+            curr = stack.pop()
+            for neigh in mtx.getrow(neigh).indices:
+                stack.append(neigh)
+                unvisited.pop(neigh)
 
 def w(part, C):
     return 1 - (len(part) / C)
@@ -20,7 +30,7 @@ def w(part, C):
 def LGD(mtx, k, C, stream_type="random"):
     lookup = {}
     partitions = {i:[] for i in range(k)}
-    order = get_order(mtx.shape[0], stream_type)
+    order = get_order(mtx.shape[0], stream_type, mtx)
 
     count = 0
     for ent in order:
@@ -149,6 +159,6 @@ if __name__ == "__main__":
         print("incorrect arguments, please run with -h flag for help")
     elif args.parse == "all":
         # main(args.input, args.output, args.stream)
-        print("heh not yet")
+        print("heh not yet done")
     else:
         main(args.input, args.output, args.stream)
