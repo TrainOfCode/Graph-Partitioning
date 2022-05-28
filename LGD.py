@@ -2,10 +2,9 @@ from scipy.io import mmread
 import numpy as np
 import math
 import random
-from pyvis.network import Network
 import argparse
 
-COLORS = ["blue", "green", "red", "yellow", "orange", "purple", "pink"]
+from displayer import disp
 
 def get_order(num, st, mtx):
     if st == "random":
@@ -13,15 +12,42 @@ def get_order(num, st, mtx):
     elif st == "DFS":
         unvisited = [i for i in range(num)]
         order = []
-        stack = [] #INDICES
+        stack = []
         while len(unvisited) != 0:
             if len(stack) == 0:
                 stack.append(random.choice(unvisited))
-                unvisited.pop(stack[0])
+                unvisited.pop(unvisited.index(stack[0]))
+                order.append(stack[0])
             curr = stack.pop()
-            for neigh in mtx.getrow(neigh).indices:
-                stack.append(neigh)
-                unvisited.pop(neigh)
+
+            for neigh in mtx.getrow(curr).indices:
+                if neigh in unvisited:
+                    order.append(neigh)
+                    stack.append(neigh)
+                    unvisited.pop(unvisited.index(neigh))
+        return order
+
+    elif st == "BFS":
+        unvisited = [i for i in range(num)]
+        order = []
+        stack = []
+        while len(unvisited) != 0:
+            if len(stack) == 0:
+                stack.append(random.choice(unvisited))
+                unvisited.pop(unvisited.index(stack[0]))
+                order.append(stack[0])
+            curr = stack.pop(0)
+
+            for neigh in mtx.getrow(curr).indices:
+                if neigh in unvisited:
+                    order.append(neigh)
+                    stack.append(neigh)
+                    unvisited.pop(unvisited.index(neigh))
+        return order
+
+
+
+
 
 def w(part, C):
     return 1 - (len(part) / C)
@@ -31,6 +57,7 @@ def LGD(mtx, k, C, stream_type="random"):
     lookup = {}
     partitions = {i:[] for i in range(k)}
     order = get_order(mtx.shape[0], stream_type, mtx)
+    print(order)
 
     count = 0
     for ent in order:
@@ -76,37 +103,6 @@ def LGD(mtx, k, C, stream_type="random"):
     return partitions, lookup
 
 
-def disp(part, mtx, lookup, out):
-    nt = Network()
-    k = len(part)
-    x = 300
-    y = 0
-    theta = (2 * math.pi / k)
-    for part_id in part:
-        x, y = x * math.cos(theta) - y * math.sin(theta), y * math.cos(theta) + x * math.sin(theta)
-        for i in range(len(part[part_id])):
-            nt.add_node(n_id = part[part_id][i] ,
-                        label = str(part[part_id][i]),
-                        color = COLORS[part_id],
-                        value = 1,
-                        x = (x + random.random()* 300 - 150),
-                        y = (y + random.random() * 300 - 150),
-                        physics = False)
-
-
-
-    for i in range(mtx.shape[0]):
-        for other in mtx.getrow(i).indices:
-            if i == other:
-                continue
-            # elif lookup[i] == lookup[int(other)]:
-            #     continue
-            else:
-                nt.add_edge(i, int(other))
-
-    nt.show(out + '.html')
-
-
 def find_quality(mtx, lookup, stream):
     count = 0
     total = 0
@@ -119,13 +115,13 @@ def find_quality(mtx, lookup, stream):
 
 
 
-def main(inp, out, stream):
-    # mtx = mmread('3elt/3elt.mtx')
-    random.seed(37)
+def main(inp, out, stream, k):
 
     mtx = mmread(inp + '.mtx')
     num_nodes = mtx.shape[0]
-    k = 5
+
+    print("k:", k)
+
     C = math.ceil(num_nodes / k)
     # print(num_nodes)
     # print(k)
@@ -154,11 +150,24 @@ if __name__ == "__main__":
     parser.add_argument('-stream', '-s', type=str,
                             help="How nodes are streamed in, choices, random, DFS, and BFS",
                             choices = ["random", "DFS", "BFS", "all"], default = "all")
+
+    parser.add_argument('-k', type=int,
+                            help="How many groups to build up",
+                            default=None)
     args = parser.parse_args()
+
+    random.seed(37)
+
+    mtx = mmread(args.input + '.mtx')
+    num_nodes = mtx.shape[0]
+
+    k_ = random.randint(num_nodes//(math.log(num_nodes) * 10), num_nodes//math.log(num_nodes))
+    k = k_ if args.k is None else args.k
     if args.input is None or args.output is None:
         print("incorrect arguments, please run with -h flag for help")
-    elif args.parse == "all":
-        # main(args.input, args.output, args.stream)
-        print("heh not yet done")
+    elif args.stream == "all":
+        main(args.input, args.output + "-random", "random", k)
+        main(args.input, args.output + "-DFS", "DFS", k)
+        main(args.input, args.output + "-BFS", "BFS", k)
     else:
-        main(args.input, args.output, args.stream)
+        main(args.input, args.output, args.stream, args.k)
